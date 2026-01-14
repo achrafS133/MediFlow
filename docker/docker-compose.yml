@@ -1,0 +1,167 @@
+services:
+  spark-master:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.spark
+    container_name: mediflow-spark-master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    environment:
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+      - PYTHONPATH=/app
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    volumes:
+      - ..:/app
+
+  spark-worker-1:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.spark
+    container_name: mediflow-spark-worker-1
+    depends_on:
+      - spark-master
+    ports:
+      - "8081:8081"
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=2G
+      - PYTHONPATH=/app
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    volumes:
+      - ..:/app
+
+  spark-worker-2:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.spark
+    container_name: mediflow-spark-worker-2
+    depends_on:
+      - spark-master
+    ports:
+      - "8082:8082"
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_WORKER_CORES=1
+      - SPARK_WORKER_MEMORY=2G
+      - PYTHONPATH=/app
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    volumes:
+      - ..:/app
+
+  minio:
+    image: minio/minio
+    container_name: mediflow-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=admin
+      - MINIO_ROOT_PASSWORD=password123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+  jupyter:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.spark
+    container_name: mediflow-jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - PYTHONPATH=/app
+    volumes:
+      - ..:/app
+    command: jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=''
+
+  dashboard:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.spark
+    container_name: mediflow-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      - PYTHONPATH=/app
+    depends_on:
+      - spark-master
+      - minio
+    volumes:
+      - ..:/app
+    command: streamlit run src/app/dashboard.py --server.address=0.0.0.0
+
+  # MLflow Tracking Server
+  mlflow-db:
+    image: postgres:15
+    container_name: mediflow-mlflow-db
+    environment:
+      - POSTGRES_USER=mlflow
+      - POSTGRES_PASSWORD=mlflow
+      - POSTGRES_DB=mlflow
+    volumes:
+      - mlflow_db_data:/var/lib/postgresql/data
+
+  mlflow:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.spark
+    container_name: mediflow-mlflow
+    ports:
+      - "5000:5000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://0.0.0.0:5000
+    depends_on:
+      - mlflow-db
+      - minio
+    command: >
+      mlflow server 
+      --backend-store-uri postgresql://mlflow:mlflow@mlflow-db:5432/mlflow
+      --default-artifact-root s3a://metadata/mlflow/
+      --host 0.0.0.0
+    volumes:
+      - ..:/app
+
+  # Kafka Cluster for Streaming
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: mediflow-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: mediflow-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  prediction-api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.spark
+    container_name: mediflow-api
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+    depends_on:
+      - spark-master
+      - minio
+    volumes:
+      - ..:/app
+    command: python3 src/app/api.py
+
+volumes:
+  minio_data:
+  mlflow_db_data:
