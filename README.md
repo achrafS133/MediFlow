@@ -54,20 +54,6 @@ MediFlow treats patient privacy as a first-class citizen.
 
 ---
 
-## 📸 Feature Showcase
-
-### 📊 MediFlow Dashboard v2.0
-The new dashboard provides deep clinical insights along with governance monitoring.
-![Dashboard Overview](docs/screenshots/dashboard_v2.png)
-
-### 🧪 MLflow Experiment Tracking
-Every model run, metric (RMSE/AUC), and hyperparameter is automatically logged to the central tracker.
-![MLflow UI](docs/screenshots/mlflow_ui.png)
-
-### 📈 Smart Predictions
-Real-time risk scoring and cost estimation via the integrated ML Engine.
-![ML Prediction Result](docs/screenshots/prediction_result.png)
-
 ---
 
 ## 🚀 Deployment Guide
@@ -118,6 +104,6 @@ python tests/test_api_v2.py
 
 ---
 
-## 📄 License & Portfolio
+## 📄 License & Contact
 Designed for high-performance healthcare informatics demonstration.
-**Operated by Antigravity AI.**
+**Developed by Achraf ER-RAhouti.**

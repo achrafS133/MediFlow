@@ -187,4 +187,4 @@ elif page == PAGE_GOVERNANCE:
         st.success("Current dataset is HIPAA compliant for external research.")
 
 st.sidebar.markdown("---")
-st.sidebar.info("MediFlow Analytics Dashboard v2.0. Operated by Antigravity AI.")
+st.sidebar.info("MediFlow Analytics Dashboard v2.0. Developed by Achraf ER-RAhouti.")
